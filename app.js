@@ -6,10 +6,10 @@ const { preAuthenticate } = require("./utils/preAuthenticate");
 const app = express();
 const port = 3000;
 
-// Middleware pour analyser les données JSON
+// Middleware to parse JSON data
 app.use(bodyParser.json());
 
-// Routes pour l'authentification et l'enregistrement des utilisateurs
+// Routes for user authentication and registration
 app.use("/api/auth", authRoutes);
 
 

@@ -3,23 +3,23 @@ const { createBlock } = require("../utils/blockchain");
 exports.registerUser = async (req, res) => {
   const { username, password } = req.body;
 
-  // Vérification des données d'entrée
+// Checking input data
   if (!username || !password) {
     return res.status(400).json({ error: "Username and password are required" });
   }
 
   try {
-    // Hash du mot de passe avec SHA-256
+    // Hash the password with SHA-256
     const hashedPassword = require("crypto").createHash("sha256").update(password).digest("hex");
 
-    // Création du bloc avec les données de l'utilisateur
+    // Create the block with the user data
     const blockData = { username, password: hashedPassword };
     const block = await createBlock(blockData);
 
-    // Envoi de la réponse avec l'ID utilisateur et clé privée
+    // Sending the response with the user ID and private key
     res.status(200).json({
-      userId: block.index,  // ID de l'utilisateur (index du bloc)
-      privateKey: block.privateKey,  // Clé privée générée dans le système blockchain
+      userId: block.index,  
+      privateKey: block.privateKey, 
     });
   } catch (error) {
     console.error(error);
@@ -27,11 +27,11 @@ exports.registerUser = async (req, res) => {
   }
 };
 
-// Nouvelle fonction pour récupérer la blockchain
+// function to retrieve the blockchain chain
 exports.getBlockchain = (req, res) => {
   try {
     res.status(200).json({
-      blockchain: blockchain,  // Retourne la blockchain actuelle
+      blockchain: blockchain,  // Returns the current blockchain
     });
   } catch (error) {
     console.error(error);

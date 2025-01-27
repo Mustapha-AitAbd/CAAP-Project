@@ -1,12 +1,12 @@
 const ethers = require("ethers");
 
-// Configuration du fournisseur Ganache local (Nœud 1)
+// Local Ganache provider configuration
 const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
 
-// Fonction pour récupérer la liste des blocs et des transactions dans la blockchain
+// Function to retrieve the list of blocks and transactions in the blockchain
 const getBlockchainInfo = async () => {
   const blockNumber = await provider.getBlockNumber();
-  console.log("Dernier numéro de bloc:", blockNumber);
+  console.log("Last block number:", blockNumber);
 
   let blockchainInfo = [];
   for (let i = 0; i <= blockNumber; i++) {
@@ -36,7 +36,7 @@ const getBlockchainInfo = async () => {
   return blockchainInfo;
 };
 
-// Fonction pour récupérer les comptes et leur solde
+// Function to retrieve accounts and their balance
 const getAccountsAndBalances = async () => {
   const accounts = await provider.listAccounts();
   let accountsInfo = [];
@@ -50,5 +50,5 @@ const getAccountsAndBalances = async () => {
   return accountsInfo;
 };
 
-// Exporter les fonctions
+
 module.exports = { getBlockchainInfo, getAccountsAndBalances };

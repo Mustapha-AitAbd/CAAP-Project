@@ -10,7 +10,7 @@ const ethers = require("ethers");
 const crypto = require("crypto");
 const Redis = require("ioredis");
 
-// Instanciation de Redis
+// Instantiating Redis
 const redis = new Redis();
 
 const calculateHash = (data) => {
@@ -18,37 +18,37 @@ const calculateHash = (data) => {
 };
 
 
-// Route pour récupérer les informations de la blockchain du nœud 1
+// Route to retrieve information from node 1's blockchain
 router.get("/node/1/blockchain", async (req, res) => {
     try {
       const blockchainInfo = await getBlockchainInfo();
-      res.json(blockchainInfo);  // Retourner les informations de la blockchain
+      res.json(blockchainInfo);  
     } catch (error) {
-      res.status(500).send("Erreur lors de la récupération de la blockchain");
+      res.status(500).send("Error retrieving blockchain");
     }
   });
   
-  // Route pour récupérer les comptes et leur solde
+// Route to retrieve accounts and their balance
 router.get("/node/1/accounts", async (req, res) => {
     try {
       const accountsInfo = await getAccountsAndBalances();
       res.json(accountsInfo);  // Retourner les comptes et leur solde
     } catch (error) {
-      res.status(500).send("Erreur lors de la récupération des comptes");
+      res.status(500).send("Eerror retrieving accounts");
     }
   });
 
 router.get("/blockchain", (req, res) => {
-    const blockchain = getBlockchain();  // Récupère la blockchain
+    const blockchain = getBlockchain();  
     res.status(200).json({
-      blockchain: blockchain,  // Retourne la blockchain complète
-      length: blockchain.length,  // Affiche la taille de la blockchain
+      blockchain: blockchain,  
+      length: blockchain.length,  
     });
   });
 
-  // Route pour la pré-authentification
+  // Route for pre-authentication
 router.post("/pre-authenticate", async (req, res) => {
-    const { userId } = req.body; // Récupération de l'ID utilisateur depuis la requête
+    const { userId } = req.body; 
   
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
@@ -56,13 +56,13 @@ router.post("/pre-authenticate", async (req, res) => {
   
     try {
       const preAuthResponse = await preAuthenticate(userId);
-      res.json(preAuthResponse); // Retourner la réponse au client
+      res.json(preAuthResponse); 
     } catch (error) {
-      res.status(500).json({ error: "Pré-authentification échouée" });
+      res.status(500).json({ error: "Pre-authentication failed" });
     }
   });
 
-// Route POST pour authentifier l'utilisateur
+// Route POST to authenticate the user
 router.post("/authenticate", async (req, res) => {
   try {
     const { userId, privateKey, challengeToken } = req.body;
@@ -71,20 +71,20 @@ router.post("/authenticate", async (req, res) => {
       return res.status(400).json({ error: "Missing required parameters" });
     }
 
-    // Étape 1 : Signature du token avec la clé privée de l'utilisateur
+    // Step 1: Sign the token with the user's private key
     const signature = await authentic.signTokenWithPrivateKey(privateKey, challengeToken);
 
-    // Étape 2 : Envoi des données hachées au système blockchain
+    // Step 2: Sending the hashed data to the blockchain system
     const blockchainResponse = authentic.sendToBlockchain(userId, signature);
 
-    // Étape 3 : Récupérer et signer le token via `retrieveAndSignToken`
+    // Step 3: Retrieve and sign the token via `retrieveAndSignToken`
     const signedTokenData = await authentic.retrieveAndSignToken(userId);
 
-    // **Nouvelle étape** : Convertir les tokens en chaînes de caractères
+    // Convert tokens to strings
     const userSignedTokenString = signedTokenData.userSignedToken.toString();
     const signatureString = signature.toString();
 
-    // Étape 4 : Valider les tokens avec le mécanisme PBFT
+    // Step 4: Validate tokens with the PBFT mechanism
     const isAuthenticated = await authentic.validateTokensWithBFT(
       userSignedTokenString,
       signatureString
@@ -94,9 +94,9 @@ router.post("/authenticate", async (req, res) => {
 
     if (isAuthenticated) {
 
-      // Supprimer le token de Redis
+      // Remove token from Redis
       await redis.del(`challengeToken:${userId}`);
-      console.log(`Token supprimé de Redis pour l'utilisateur : ${userId}`);
+      console.log(`Token removed from Redis for user : ${userId}`);
  
        
 
@@ -119,30 +119,30 @@ router.post("/authenticate", async (req, res) => {
 
 
 
-// Route pour trouver un bloc par index en utilisant req.body
+// Route to find a block by index
 router.post('/block', (req, res) => {
-  // Récupérer l'index du bloc depuis req.body
+  
   const { index } = req.body;
   const blockchain = getBlockchain();
 
-  // Vérifier si l'index est bien fourni
+  // Check if the index is provided correctly
   if (index === undefined) {
     return res.status(400).json({ error: "Index is required in the request body" });
   }
 
-  // Chercher le bloc correspondant à l'index
+  // Find the block corresponding to the index
   //const block = blockchain.find((b) => b.index === index);
 
   const block = blockchain.find((b) => {
-    const blockHash = calculateHash(b.index.toString());  // Convert index to string
-    return blockHash === index.toString();  // Also convert index to string for comparison
+    const blockHash = calculateHash(b.index.toString());  
+    return blockHash === index.toString();  
   });
   
   if (block) {
-    // Si le bloc est trouvé, renvoyer le bloc
+    // If the block is found, return the block
     res.status(200).json(block);
   } else {
-    // Si le bloc n'est pas trouvé, renvoyer une erreur 404
+    // If the block is not found, return an error 404
     res.status(404).json({ error: "Block not found" });
   }
 });

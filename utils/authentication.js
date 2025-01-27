@@ -3,18 +3,18 @@ const crypto = require("crypto");
 const Redis = require("ioredis");
 const { getBlockchain } = require("./blockchain");
 
-// Configuration du fournisseur Ganache local
+// Local Ganache provider configuration
 const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
 
-// Configuration de Redis
-const redis = new Redis(); // Par défaut, Redis écoute sur 127.0.0.1:6379
+// Redis Configuration
+const redis = new Redis(); // By default, Redis listens on 127.0.0.1:6379
 
-// Fonction pour calculer le hash SHA-256
+// Function to calculate the SHA-256 hash
 const calculateHash = (data) => {
   return crypto.createHash("sha256").update(data).digest("hex");
 };
 
-// Fonction pour signer un token avec une clé privée
+// Function to sign a token with a private key
 const signTokenWithPrivateKey = async (privateKey, challengeToken) => {
   try {
     const wallet = new ethers.Wallet(privateKey);
@@ -26,15 +26,15 @@ const signTokenWithPrivateKey = async (privateKey, challengeToken) => {
   }
 };
 
-// Fonction pour envoyer les données au système blockchain
+// Function to send data to the blockchain system
 const sendToBlockchain = (userId, signedToken) => {
   try {
-    // Hacher l'ID utilisateur et le token signé en chaînes de caractères
-    const hashedUserId = crypto.createHash("sha256").update(userId.toString()).digest("hex");  // Convertir userId en chaîne de caractères
-    const hashedSignedToken = crypto.createHash("sha256").update(signedToken.toString()).digest("hex");  // Convertir signedToken en chaîne de caractères
+    // Hash the user ID and signed token into strings
+    const hashedUserId = crypto.createHash("sha256").update(userId.toString()).digest("hex");  
+    const hashedSignedToken = crypto.createHash("sha256").update(signedToken.toString()).digest("hex"); 
 
-    // Simuler une réponse de blockchain
-    return {  // Retourner l'objet sans syntaxe incorrecte
+    // Simulate a blockchain response
+    return {  
       hashedUserId,
       hashedSignedToken,
     };
@@ -45,41 +45,41 @@ const sendToBlockchain = (userId, signedToken) => {
 };
 
 
-// Fonction pour récupérer et signer le token
+// Function to retrieve and sign the token
 const retrieveAndSignToken = async (hashedUserId) => {
   try {
-    // Étape 1 : Récupérer le token depuis Redis
+    // Step 1: Retrieve the token from Redis
     const blockchainData = getBlockchain();
     const storedToken = await redis.get(`challengeToken:${hashedUserId}`);
     if (!storedToken) {
-      throw new Error("Token introuvable dans Redis.");
+      throw new Error("Token not found in Redis.");
     }
 
-    console.log(`Token récupéré depuis Redis : ${storedToken}`);
+    console.log(`Token retrieved from Redis : ${storedToken}`);
 
-     // Étape 2 : Rechercher l'utilisateur dans la blockchain par index
+     // Step 2: Search the user in the blockchain by index
      const userBlock = blockchainData.find((block) => {
-      const blockHash = calculateHash(block.index.toString());  // Utilisation de la fonction calculateHash
+      const blockHash = calculateHash(block.index.toString());  
       return blockHash === hashedUserId.toString();
     });
 
 
     if (!userBlock) {
-      throw new Error("Informations utilisateur introuvables dans la blockchain.");
+      throw new Error("User information not found in blockchain.");
     }
 
-    console.log("Bloc contenant l'utilisateur trouvé :", userBlock);
+    console.log("Block containing user found:", userBlock);
 
-    // Étape 3 : Extraire la clé privée de l'utilisateur depuis le bloc
+    // Step 3: Extract the user's private key from the block
     const userPrivateKey = userBlock.privateKey;
-    console.log(`Clé privée utilisateur extraite : ${userPrivateKey}`);
+    console.log(`Extracted user private key: ${userPrivateKey}`);
 
-    // Étape 4 : Signer le token avec la clé privée de l'utilisateur
+    // Step 4: Sign the token with the user's private key
     const wallet = new ethers.Wallet(userPrivateKey);
     const userSignedToken = await wallet.signMessage(storedToken);
 
 
-    // Étape 6 : Préparer la réponse
+    // Step 6: Prepare the response
     const response = {
       userId: userBlock.index,
       storedToken,
@@ -87,16 +87,16 @@ const retrieveAndSignToken = async (hashedUserId) => {
       userPrivateKey,
     };
 
-    console.log("Réponse générée :", response);
+    console.log("Generated response:", response);
     return response;
   } catch (error) {
-    console.error("Erreur lors de la récupération et signature du token :", error);
+    console.error("Error while retrieving and signing the token:", error);
     throw error;
   }
 };
 
 
-// Fonction pour valider les tokens signés avec le mécanisme BFT via Ganache
+// Function to validate tokens signed with the BFT mechanism via Ganache
 /*const validateTokensWithBFT = async (userSignedToken, signature) => {
   try {
     // Récupérer les comptes Ganache comme nœuds
@@ -139,44 +139,39 @@ const validateTokensWithBFT = async (userSignedToken, signature) => {
     const totalNodes = accounts.length;
 
     if (totalNodes === 0) {
-      throw new Error("Aucun nœud disponible dans Ganache.");
+      throw new Error("No nodes available in Ganache.");
     }
 
-    const threshold = Math.ceil((2 / 3) * totalNodes); // Seuil pour consensus
-    let votes = []; // Stocke les votes des nœuds
+    const threshold = Math.ceil((2 / 3) * totalNodes); // Threshold for consensus
+    let votes = []; // Stores node votes
 
-    // **Phase 1: Préparation**
-    console.log("Phase 1: Préparation - Envoi de la proposition par le leader.");
-    const leader = accounts[0]; // Premier compte comme leader
+    // **Phase 1: Preparation**
+    const leader = accounts[0]; // First count as leader
     console.log(`Leader: ${leader}`);
 
     for (let i = 1; i < totalNodes; i++) {
-      const nodeAddress = accounts[i]; // Utilisation de l'adresse du nœud
+      const nodeAddress = accounts[i]; // Using the node address
 
-      // Simuler une validation basée sur la comparaison des tokens
+      // Simulate a validation based on the comparison of tokens
       const isValid = userSignedToken === signature;
 
-      // **Phase 2: Pré-confirmation**
-      console.log(`Nœud ${i} (${nodeAddress}) valide la proposition : ${isValid}`);
+      // **Phase 2: Pre-confirmation**
+      console.log(`Node ${i} (${nodeAddress}) validates the proposal: ${isValid}`);
       votes.push({ node: nodeAddress, vote: isValid });
     }
 
     // **Phase 3: Confirmation**
     const positiveVotes = votes.filter((vote) => vote.vote).length;
-    console.log(
-      `Votes positifs : ${positiveVotes}, Seuil requis : ${threshold}`
-    );
-
     if (positiveVotes >= threshold) {
-      console.log("Consensus atteint : Validation réussie.");
-      return true; // Consensus atteint
+      console.log("Consensus reached: Validation successful.");
+      return true; // Consensus reached
     } else {
-      console.log("Consensus non atteint : Validation échouée.");
-      return false; // Consensus échoué
+      console.log("Consensus not reached: Validation failed.");
+      return false; // Consensus failed
     }
   } catch (error) {
-    console.error("Erreur lors de la validation PBFT :", error.message);
-    throw new Error("Échec de la validation des tokens avec PBFT.");
+    console.error("Error during PBFT validation:", error.message);
+    throw new Error("Failed to validate tokens with PBFT.");
   }
 };
 

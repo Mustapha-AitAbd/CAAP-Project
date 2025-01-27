@@ -1,69 +1,69 @@
 const ethers = require("ethers");
 
-// Configuration du fournisseur Ganache local
+// Local Ganache provider configuration
 const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
 
 const userKeys = {};
-// Fonction pour récupérer dynamiquement les nœuds à partir du fournisseur
+// Function to dynamically retrieve nodes from the provider
 const getValidators = async () => {
-  const signers = await provider.listAccounts();  // Récupérer les adresses des nœuds
-  const validators = await Promise.all(signers.map((address) => provider.getSigner(address)));  // Récupérer les signers correspondants
+  const signers = await provider.listAccounts();  
+  const validators = await Promise.all(signers.map((address) => provider.getSigner(address)));  
   return validators;
 };
 
-// Fonction pour sélectionner un certain pourcentage de validateurs de manière aléatoire
+// Function to select a certain percentage of validators randomly
 const getRandomValidators = (validatorsList, percentage = 30) => {
-  const numberOfValidators = Math.floor((validatorsList.length * percentage) / 100);  // Calculer le nombre de validateurs à sélectionner
-  const shuffledValidators = [...validatorsList].sort(() => Math.random() - 0.5);  // Mélanger la liste des validateurs
-  return shuffledValidators.slice(0, numberOfValidators);  // Retourner les X premiers validateurs après mélange
+  const numberOfValidators = Math.floor((validatorsList.length * percentage) / 100);  
+  const shuffledValidators = [...validatorsList].sort(() => Math.random() - 0.5);  
+  return shuffledValidators.slice(0, numberOfValidators);  
 };
 
-let blockchain = [];  // La blockchain simulée
+let blockchain = [];  // The simulated blockchain
 
-// Fonction pour vérifier et ajouter un Genesis Block si nécessaire
+// Function to check and add a Genesis Block if necessary
 const addGenesisBlock = () => {
   if (blockchain.length === 0) {
     const genesisBlock = {
       index: 1,
       timestamp: new Date().toISOString(),
-      data: { message: "Genesis Block" },  // Message spécial pour le Genesis Block
-      previousHash: null,
+      data: { message: "Genesis Block" },  // Special Message for the Genesis Block
+      previousHash: 0,
       hash: ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Genesis Block")),  // Hash du message
       privateKey: "0x17856d7938bf94bf3186d751ebe5a448ca86d5d7e055e6cb54fd62f662a883ca",
       publicKey: "0x60E9a1b6B9b94D2f32a92bad046C6866830eF464",
-      nonce: 0 // Générer un nonce pour le genesis block
+      nonce: 0 // Generate a nonce for the genesis block
     };
 
-    blockchain.push(genesisBlock);  // Ajouter le Genesis Block à la blockchain
+    blockchain.push(genesisBlock);  // Add the Genesis Block to the blockchain
     console.log("Genesis Block added to blockchain");
   }
 };
 
-// Fonction de validation PoW pour vérifier si le bloc respecte les critères
+// PoW validation function to check if the block meets the criteria
 const validatePoW = (block, difficulty) => {
   let hash = block.hash;
   let nonce = block.nonce;
 
-  // Simuler la validation PoW en recherchant un nonce qui produit un hash avec les "difficulty" premiers zéros
+  // Simulate PoW validation by searching for a nonce that produces a hash with "difficulty" leading zeros
   while (!hash.startsWith('0'.repeat(difficulty))) {
     nonce++;
-    hash = calculateHash(block, nonce);  // Recalculer le hash avec le nouveau nonce
+    hash = calculateHash(block, nonce);  // Recalculate the hash with the new nonce
   }
 
-  // Si un nonce valide est trouvé, le bloc est valide
+  // If a valid nonce is found, the block is valid
   console.log(`Block valid: ${hash} with nonce: ${nonce}`);
-  return { ...block, hash, nonce };  // Retourner le bloc validé avec son nonce
+  return { ...block, hash, nonce };  // Return the validated block with its nonce
 };
 
-// Calculer le hash du bloc avec le nonce
+// Calculate the block hash with the nonce
 const calculateHash = (block, nonce) => {
   return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(JSON.stringify(block) + nonce));
 };
 
-// Fonction pour créer un bloc avec validation par les nœuds
+// Function to create a block with validation by nodes
 exports.createBlock = async (data, difficulty = 1) => {
   try {
-    // Ajouter le Genesis Block s'il n'est pas encore dans la blockchain
+    // Add the Genesis Block if it is not yet in the blockchain
     addGenesisBlock();
 
     const block = {
@@ -71,28 +71,28 @@ exports.createBlock = async (data, difficulty = 1) => {
       timestamp: new Date().toISOString(),
       data,
       previousHash: blockchain.length ? blockchain[blockchain.length - 1].hash : null,
-      nonce: 0, // Initialiser le nonce
+      nonce: 0, 
     };
 
-    // Calcul du hash initial du bloc
+    // Calculation of the initial hash of the block
     block.hash = calculateHash(block, block.nonce);
 
-    // Génération d'une clé privée et publique pour l'utilisateur
+    // Generate a private and public key for the user
     const userWallet = ethers.Wallet.createRandom();
     block.privateKey = userWallet.privateKey;
     block.publicKey = userWallet.address;
 
-    // Récupérer les validateurs disponibles
+    // Retrieve available validators
     const allValidators = await getValidators();
-    const selectedValidators = getRandomValidators(allValidators, 30);  // Sélectionner 30% des validateurs
+    const selectedValidators = getRandomValidators(allValidators, 30);  // Select 30% of validators
 
-    // Effectuer la validation du bloc par PoW (simuler la validation)
+    // Perform block validation by PoW (simulate validation)
     const validBlock = validatePoW(block, difficulty);
 
-    // Validation par les nœuds (PoA)
+    // Validation by nodes (PoA)
     const validNodes = await validateBlock(validBlock, difficulty, selectedValidators);
 
-    // Si la majorité des validateurs acceptent, ajouter le bloc à la blockchain
+    // If the majority of validators accept, add the block to the blockchain
     if (validNodes.length >= Math.ceil(selectedValidators.length / 2)) { // Majority rule
       blockchain.push(validBlock);
       console.log("Block added to blockchain");
@@ -106,29 +106,29 @@ exports.createBlock = async (data, difficulty = 1) => {
   }
 };
 
-// Fonction de validation des blocs par les validateurs
+// Function for validating blocks by validators
 const validateBlock = async (block, difficulty, selectedValidators) => {
   const results = await Promise.all(
     selectedValidators.map(async (validator) => {
-      // Simuler la validation des blocs avec PoW
+      // Simulate block validation with PoW
       const address = await validator.getAddress();
       console.log(`Validator ${address} is validating the block`);
 
-      // Chaque validateur fait un PoW pour valider le bloc
+      // Each validator does a PoW to validate the block
       const validBlock = validatePoW(block, difficulty);
 
-      // Simuler la validation du bloc après PoW
+      // Simulate block validation after PoW
       const validationResult = validBlock.hash.startsWith('0'.repeat(difficulty)); // Vérifier si le hash respecte la difficulté
       console.log(`Validator ${address} validation result: ${validationResult}`);
       return validationResult;
     })
   );
 
-  // Retourner les validateurs qui ont validé le bloc
+  // Return the validators that validated the block
   return selectedValidators.filter((_, index) => results[index]);
 };
 
-// Fonction pour récupérer la blockchain actuelle
+// Function to retrieve the current blockchain
 exports.getBlockchain = () => {
-  return blockchain;  // Retourne la chaîne de blocs complète
+  return blockchain; // Returns the complete blockchain
 };

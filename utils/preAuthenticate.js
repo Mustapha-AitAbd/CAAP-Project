@@ -2,60 +2,60 @@ const ethers = require("ethers");
 const crypto = require("crypto");
 const Redis = require("ioredis");
 
-// Configuration du fournisseur Ganache local
+// Local Ganache provider configuration
 const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
 
-// Configuration de Redis
-const redis = new Redis(); // Par défaut, Redis écoute sur 127.0.0.1:6379
+// Redis Configuration
+const redis = new Redis(); 
 
-// Fonction pour calculer le hash SHA-256
+// Function to calculate the SHA-256 hash
 const calculateHash = (data) => {
   return crypto.createHash("sha256").update(data).digest("hex");
 };
 
-// Fonction pour sélectionner un shard avec PRF
+// Function to select a shard with PRF
 const selectShard = (hashedUserId, requestTimestamp, m) => {
   const prfInput = `${hashedUserId}${requestTimestamp}`;
-  const prfValue = parseInt(calculateHash(prfInput), 16); // Convertir le hash en entier
-  return prfValue % m; // Shard sélectionné
+  const prfValue = parseInt(calculateHash(prfInput), 16); // Convert hash to integer
+  return prfValue % m; // Selected Shard
 };
 
-// Fonction pour créer un challenge token
+// Function to create a challenge token
 const createChallengeToken = async () => {
   const latestBlock = await provider.getBlock("latest");
-  const networkTimestamp = Date.now(); // Timestamp actuel en millisecondes
+  const networkTimestamp = Date.now(); // Current timestamp in milliseconds
 
   const challengeToken = calculateHash(`${latestBlock.hash}${networkTimestamp}`);
   return { challengeToken, networkTimestamp };
 };
 
-// Fonction pour signer le challenge token par les nœuds du shard
+// Function to sign the challenge token by the shard nodes
 const signChallengeToken = async (challengeToken, shardNodes) => {
   const signedTokens = [];
 
-  // Clé privée et publique fixes du nœud (exemple)
+  // Fixed private and public key of the node (example)
   const privateKey = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"; // Clé privée du nœud
   const publicKey = "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"; // Clé publique du nœud
 
-  // Créer un wallet à partir de la clé privée
+  // Create a wallet from the private key
   const wallet = new ethers.Wallet(privateKey, provider);
 
-  // Signer le challengeToken avec la clé privée du wallet
+  // Sign the challengeToken with the wallet's private key
   const signature = await wallet.signMessage(challengeToken);
 
-  // Ajouter la clé publique fixe une seule fois au début
+  // Add the fixed public key only once at the beginning
   signedTokens.push({
-    publicKey: publicKey, // Utilisation de la clé publique fixe
+    publicKey: publicKey, 
     signature: signature,
   });
 
-  // Utiliser la méthode signer.getAddress() pour obtenir l'adresse publique dans la boucle
+ // Use the signer.getAddress() method to get the public address in the loop
   for (const node of shardNodes) {
     const signer = provider.getSigner(node);
     const address = await signer.getAddress();
 
     signedTokens.push({
-      publicKey: address, // Utilisation de la méthode signer.getAddress() pour obtenir l'adresse publique du nœud
+      publicKey: address, // Using the signer.getAddress() method to get the public address of the node
       signature: signature,
     });
   }
@@ -63,37 +63,37 @@ const signChallengeToken = async (challengeToken, shardNodes) => {
   return signedTokens;
 };
 
-// Fonction principale de pré-authentification
+// Main pre-authentication function
 const preAuthenticate = async (userId) => {
   try {
     // Étape 1 : Hachage de l'ID utilisateur
     const hashedUserId = calculateHash(userId);
 
-    // Étape 2 : Générer une requête d'authentification
+    // Step 2: Generate an authentication request
     const requestTimestamp = Date.now();
     const requestAuth = {
       userId: hashedUserId,
       timestamp: requestTimestamp,
     };
 
-    // Étape 3 : Sélection dynamique d'un shard
-    const totalShards = 2; // Nombre total de shards dans le réseau
+    // Step 3: Dynamically selecting a shard
+    const totalShards = 2; // Total number of shards in the network
     const selectedShard = selectShard(hashedUserId, requestTimestamp, totalShards);
 
-    // Étape 4 : Génération d'un challenge token
+    // Step 4: Generating a challenge token
     const { challengeToken, networkTimestamp } = await createChallengeToken();
 
-    // Stockage du challengeToken dans Redis avec une expiration de 300 secondes
+    // Storing the challengeToken in Redis with an expiration of 3000 seconds
     await redis.setex(`challengeToken:${hashedUserId}`, 3000, challengeToken);
 
-    // Étape 5 : Sélection des nœuds pour le shard
-    const allNodes = await provider.listAccounts(); // Liste des nœuds disponibles
+    // Step 5: Selecting nodes for the shard
+    const allNodes = await provider.listAccounts(); // List of available nodes
     const shardNodes = allNodes.slice(selectedShard * 2, selectedShard * 2 + 2); // Ex : 2 nœuds par shard
 
-    // Étape 6 : Signature du token par les nœuds
+    // Step 6: Signature of the token by the nodes
     const signedTokens = await signChallengeToken(challengeToken, shardNodes);
 
-    // Étape 7 : Structure de la réponse
+    // Step 7: Response Structure
     const response = {
       requestAuth,
       selectedShard,
@@ -103,7 +103,7 @@ const preAuthenticate = async (userId) => {
 
     return response;
   } catch (error) {
-    console.error("Erreur lors de la pré-authentification :", error);
+    console.error("Error during pre-authentication:", error);
     throw error;
   }
 };
